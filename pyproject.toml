@@ -2,6 +2,9 @@
 name = "agent-slo"
 version = "0.1.0"
 requires-python = ">=3.11"
+dependencies = [
+    "slo-toolkit @ git+https://github.com/charlesedwardsmith5609/slo-toolkit@6c548691bfd52ca6e45a98ded2b98c3f6999716e",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -22,3 +25,7 @@ python_version = "3.11"
 disallow_untyped_defs = true
 check_untyped_defs = true
 warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "slo_toolkit.*"
+follow_untyped_imports = true

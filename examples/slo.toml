@@ -1,0 +1,13 @@
+# Per-agent SLO configuration. max_cost_usd mirrors the value each agent-harness agent passes to
+# RunConfig (the audit log does not record it). Everything else uses the built-in defaults:
+# pass_target 0.95, latency_threshold_s 30 at 0.95, cost_headroom_fraction 0.8 at 0.95,
+# gate_block_ceiling 0.10, min_events 5.
+
+[agents.pr-reviewer]
+max_cost_usd = 0.30
+
+[agents.deploy-risk]
+max_cost_usd = 0.20
+
+[agents.runbook-gen]
+max_cost_usd = 0.50
