@@ -1,5 +1,7 @@
 # agent-slo
 
+[![CI](https://github.com/charlesedwardsmith5609/agent-slo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/charlesedwardsmith5609/agent-slo/actions/workflows/ci.yml)
+
 Reads [agent-harness](https://github.com/charlesedwardsmith5609/agent-harness) audit logs and
 computes agent SLIs, error budgets and multi-window burn rates. It emits Prometheus metrics, Prometheus
 alert rules and a weekly Markdown report. The burn-rate math comes from
