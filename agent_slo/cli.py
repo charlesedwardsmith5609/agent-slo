@@ -122,6 +122,7 @@ def _run(args: argparse.Namespace) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Run the CLI; returns 0 on success and 2 on any usage, config, input or output error."""
     args = _build_parser().parse_args(argv)
     try:
         _run(args)

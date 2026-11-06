@@ -5,8 +5,23 @@ Layout::
     [defaults]            # optional; any key below
     pass_target = 0.95
 
-    [agents.pr-reviewer]  # one table per agent
+    [agents.pr-reviewer]  # one table per agent; names match [A-Za-z0-9._-]{1,64}
     max_cost_usd = 0.30   # required (here or in [defaults]); the audit log does not carry it
+
+Keys (built-in default; valid range):
+
+- ``max_cost_usd``: the agent's per-run cost limit in USD (required; > 0)
+- ``pass_target``: pass-rate SLO (0.95; between 0 and 1 exclusive)
+- ``latency_threshold_s``: a run is fast at or under this many seconds (30; > 0)
+- ``latency_target``: share of successful runs that must be fast (0.95; 0 to 1 exclusive)
+- ``cost_headroom_fraction``: a run has headroom at or under this share of max_cost_usd
+  (0.8; > 0 and <= 1)
+- ``cost_headroom_target``: share of successful runs that must have headroom
+  (0.95; 0 to 1 exclusive)
+- ``gate_block_ceiling``: highest acceptable gate-block rate (0.10; 0 to 1 exclusive)
+- ``min_events``: fewer runs than this gives no verdict (5; integer >= 1)
+
+Unknown keys and unknown tables are rejected with ``ConfigError``.
 """
 
 from __future__ import annotations
@@ -37,6 +52,8 @@ class ConfigError(ValueError):
 
 @dataclass(frozen=True)
 class AgentConfig:
+    """Validated SLO settings for one agent; see the module docstring for each key."""
+
     name: str
     max_cost_usd: float
     pass_target: float

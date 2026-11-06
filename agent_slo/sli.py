@@ -19,6 +19,8 @@ P95 = 0.95
 
 @dataclass(frozen=True)
 class AgentSLIs:
+    """Counts, ratios and percentiles for one agent over [start, end); ratios may be None."""
+
     agent: str
     start: datetime
     end: datetime

@@ -43,6 +43,7 @@ def test_readme_demo_commands_run(tmp_path: Path) -> None:
         assert result.returncode == 0, (command, result.stderr)
     report = (tmp_path / "report.md").read_text()
     assert "- deploy-risk: EXHAUSTED" in report and "- pr-reviewer: OK" in report
+    assert "- runbook-gen: BURNING" in report  # the README states all three outcomes
     assert (tmp_path / "agent_slo.prom").stat().st_size > 0
     assert "AgentSLOBudgetExhausted" in (tmp_path / "rules.yml").read_text()
 
@@ -54,4 +55,5 @@ def test_readme_keeps_mandatory_statements() -> None:
     assert "Spend is under-reported" in flat
     assert "promtool check rules" in flat and "other alerts are covered by golden-file" in flat
     assert "Keep the full history" in flat
+    assert "`runbook-gen` BURNING" in flat and "`deploy-risk` EXHAUSTED" in flat
     assert "never inspected, stored, or written to any output" in flat

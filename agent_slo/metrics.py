@@ -51,6 +51,7 @@ class _Families:
         self._samples: dict[str, list[Sample]] = {}
 
     def add(self, name: str, kind: str, help_text: str, labels: Labels, value: float) -> None:
+        """Add one sample, creating the family (with its HELP and TYPE) on first use."""
         if name not in self._meta:
             self._order.append(name)
             self._meta[name] = (kind, help_text)
@@ -65,6 +66,7 @@ class _Families:
             self._samples[name] = []
 
     def render(self) -> str:
+        """Exposition text: HELP, TYPE and samples for each family, in first-use order."""
         lines: list[str] = []
         for name in self._order:
             kind, help_text = self._meta[name]

@@ -34,6 +34,8 @@ SLO_NAME = "pass-rate"
 
 
 class BudgetState(Enum):
+    """Overall state of one agent's pass-rate budget."""
+
     NO_DATA = auto()  # no eligible runs in the compliance window
     INSUFFICIENT_DATA = auto()  # fewer than min_events eligible runs
     OK = auto()
@@ -43,6 +45,8 @@ class BudgetState(Enum):
 
 @dataclass(frozen=True)
 class WindowEval:
+    """One burn-rate window evaluated at ``now`` (``firing`` applies the guards)."""
+
     name: str
     severity: str
     short_hours: float
@@ -57,6 +61,8 @@ class WindowEval:
 
 @dataclass(frozen=True)
 class BudgetStatus:
+    """Result of ``evaluate_budget`` for one agent."""
+
     agent: str
     now: datetime
     state: BudgetState

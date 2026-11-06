@@ -73,6 +73,8 @@ class RunRecord:
 
 @dataclass(frozen=True)
 class AuditReadResult:
+    """Usable records plus a count of skipped lines per reason (see ``SKIP_REASONS``)."""
+
     records: tuple[RunRecord, ...]
     skipped: Mapping[str, int]
 

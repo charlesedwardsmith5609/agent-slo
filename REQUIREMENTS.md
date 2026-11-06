@@ -1,5 +1,9 @@
 # agent-slo requirements (confirmed by human 2026-11-06)
 
+Status: all deliverables below are implemented; the README is the current user documentation. This file records
+what was agreed. Where the implementation differs from the text further down, the differences are listed in
+"Implementation notes" at the end.
+
 Source of truth for inputs: agent-harness `harness/agent.py` (audit JSONL, OTel spans).
 Reference reviewed: agent-harness and slo-toolkit at the commits cloned on 2026-11-06.
 
@@ -61,3 +65,17 @@ The report must say so.
   24h/72h, ticket; Trend 10%, 72h/168h, info. Burn thresholds come from slo-toolkit.
 - Budget exhausted = observed bad-run rate over the compliance window >= error budget, with
   at least min_events eligible runs.
+
+## Implementation notes (differences from the text above)
+- Alerts do not use counters. `increase()` runs on export time and extrapolates, so alerts read exact per-window
+  gauges (`agent_slo_window_eligible`, `agent_slo_window_bad`) computed from audit timestamps. The counters are
+  informational. This replaces "exports counters" under "Metrics path".
+- slo-toolkit supplies windows, thresholds, severities and burn-rate math, but its `to_prometheus_rules` is not
+  used: it cannot filter the denominator by agent or add event guards, so `agent_slo/rules.py` writes the rules.
+- A single bad run never pages or freezes an agent: burn alerts and "exhausted" also need at least 2 bad runs.
+- Agents missing from the config are reported but never become metric labels (only totals are exported).
+- The generator's healthy scenario uses 1.5% confidence blocks and 0.4% cost blocks, and its burst scenario is
+  12 hours at 90% failures (a 5-hour burst correctly does not page under the multi-window rule).
+- Limits: lines over 1 MiB, agent names over 128 characters and run ids over 64 characters are skipped; files
+  with over 1,000,000 usable records are refused.
+- promtool 3.16.0 validates the generated rules and metrics, and unit-tests the Fast Burn alert only.
