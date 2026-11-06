@@ -1,0 +1,22 @@
+# Dependabot version updates. Same shape as the agent-harness and slo-toolkit repos.
+#
+# open-pull-requests-limit applies per ecosystem, so up to 10 Dependabot PRs can be open at once.
+#
+# Not covered: the pytest, ruff and mypy versions and the promtool version/checksum pinned in
+# .github/workflows/ci.yml. Bump those by hand (a new ruff can change `ruff format` output).
+#
+# slo-toolkit is a git dependency pinned to a commit on purpose (see REQUIREMENTS.md). If a PR
+# proposes a new commit, treat it as a design change: check compatibility, then update
+# REQUIREMENTS.md and the pin together.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

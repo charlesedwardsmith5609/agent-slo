@@ -219,6 +219,11 @@ bash scripts/check.sh   # ruff check, ruff format --check, mypy, pytest
 CI (`.github/workflows/ci.yml`) runs `scripts/check.sh` on Python 3.11 and 3.14 with pinned tool versions and a
 checksum-verified promtool 3.16.0, and fails if promtool is missing (`REQUIRE_PROMTOOL=1`) rather than skipping those tests.
 
+Dependabot (`.github/dependabot.yml`) proposes weekly updates for the GitHub Actions in the workflow and for pip
+dependencies. It does not see the tool versions and promtool pinned inside `ci.yml`; bump those by hand. The
+slo-toolkit pin is deliberate, so a Dependabot PR for it is a design change: check compatibility and update
+`REQUIREMENTS.md` with the pin.
+
 `pytest`, `ruff` and `mypy` are development tools, not dependencies of the package. `promtool` (from a Prometheus
 release) is optional; the tests that need it are skipped without it. The design history is in `REQUIREMENTS.md`
 and `plans/`.
