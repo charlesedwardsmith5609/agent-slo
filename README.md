@@ -146,3 +146,7 @@ must be recorded with who approved it and why.
 ```bash
 bash scripts/check.sh   # ruff check, ruff format --check, mypy, pytest
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).

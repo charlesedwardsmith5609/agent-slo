@@ -2,6 +2,8 @@
 name = "agent-slo"
 version = "0.1.0"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+readme = "README.md"
 dependencies = [
     "slo-toolkit @ git+https://github.com/charlesedwardsmith5609/slo-toolkit@6c548691bfd52ca6e45a98ded2b98c3f6999716e",
 ]
