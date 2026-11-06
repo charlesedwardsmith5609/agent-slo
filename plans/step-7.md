@@ -46,3 +46,7 @@ top-level directories. Fixed by adding `[build-system]` (setuptools>=68, as in t
 Replay result after the fix: fresh venv, pinned tools, promtool from the verified tarball, `REQUIRE_PROMTOOL=1`:
 ruff check, ruff format, mypy and pytest (155 tests, none skipped) all pass. Unverified: Python 3.11 (not available
 locally; syntax checked with `ast.parse(feature_version=(3, 11))`) and the workflow on GitHub itself.
+
+## Change after first CI run
+The runner is pinned to `ubuntu-24.04` instead of `ubuntu-latest` (GitHub announced the `ubuntu-latest` label will move
+to Ubuntu 26), so the OS no longer changes without a commit.
