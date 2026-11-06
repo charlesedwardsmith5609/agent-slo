@@ -1,0 +1,10 @@
+.reviews/
+.pairing-setup.log
+*.local.md
+.claude/settings.local.json
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
