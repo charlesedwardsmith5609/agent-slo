@@ -10,5 +10,8 @@ differ (for example step 3 first planned top-20 unconfigured agent labels and la
 4. `step-4.md`: weekly Markdown report
 5. `step-5.md`: synthetic data generator and CLI
 6. `step-6.md`: README, error budget policy, example config
+7. `step-7.md`: GitHub Actions CI with promtool
+8. `step-8.md`: Dependabot for Actions and pip
+9. `step-9.md`: documentation audit
 
 For current behaviour read the README.

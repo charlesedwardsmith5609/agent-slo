@@ -159,3 +159,12 @@ def test_unconfigured_agents_capped() -> None:
         records += runs(f"g{n:02d}", 1, 1)
     text = render_report(records, {}, {}, NOW)
     assert "- 5 more agents, 5 runs" in text
+
+
+def test_report_explains_itself_to_a_new_reader() -> None:
+    text = render_report([], {}, CONFIGS, NOW)
+    legend = text.split("## How to read this report")[1].split("## Caveats")[0]
+    for state in ("NO_DATA", "INSUFFICIENT_DATA", "OK", "BURNING", "EXHAUSTED"):
+        assert state in legend
+    assert "Burn rate" in legend and "Budget consumed" in legend and "bad" in legend
+    assert text.index("## How to read this report") < text.index("## Caveats")

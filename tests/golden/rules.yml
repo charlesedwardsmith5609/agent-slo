@@ -27,7 +27,7 @@ groups:
           agent: "deploy-risk"
           slo: "pass-rate"
         annotations:
-          summary: "deploy-risk SLO 'pass-rate' (availability) is burning 5% of its 30d error budget in 6h (burn rate \u22656.0x) [env=production]"
+          summary: "deploy-risk pass-rate: burning 5% of the 30d error budget in 6h (burn rate above 6.0x over both 6h and 24h)"
       - alert: "AgentSLOSlowBurn"
         expr: "agent_slo:burn_rate:ratio_24h{agent=\"deploy-risk\"} > 3.0\nand on(agent) agent_slo:burn_rate:ratio_72h{agent=\"deploy-risk\"} > 3.0\nand on(agent) agent_slo_window_eligible{agent=\"deploy-risk\",window=\"24h\"} >= 5\nand on(agent) agent_slo_window_bad{agent=\"deploy-risk\",window=\"24h\"} >= 2"
         for: "5m"
@@ -36,7 +36,7 @@ groups:
           agent: "deploy-risk"
           slo: "pass-rate"
         annotations:
-          summary: "deploy-risk SLO 'pass-rate' (availability) is burning 10% of its 30d error budget in 24h (burn rate \u22653.0x) [env=production]"
+          summary: "deploy-risk pass-rate: burning 10% of the 30d error budget in 24h (burn rate above 3.0x over both 24h and 72h)"
       - alert: "AgentSLOTrend"
         expr: "agent_slo:burn_rate:ratio_72h{agent=\"deploy-risk\"} > 1.0\nand on(agent) agent_slo:burn_rate:ratio_168h{agent=\"deploy-risk\"} > 1.0\nand on(agent) agent_slo_window_eligible{agent=\"deploy-risk\",window=\"72h\"} >= 5\nand on(agent) agent_slo_window_bad{agent=\"deploy-risk\",window=\"72h\"} >= 2"
         for: "5m"
@@ -45,7 +45,7 @@ groups:
           agent: "deploy-risk"
           slo: "pass-rate"
         annotations:
-          summary: "deploy-risk SLO 'pass-rate' (availability) is burning 10% of its 30d error budget in 72h (burn rate \u22651.0x) [env=production]"
+          summary: "deploy-risk pass-rate: burning 10% of the 30d error budget in 72h (burn rate above 1.0x over both 72h and 168h)"
       - alert: "AgentSLOBudgetExhausted"
         expr: "agent_slo_budget_exhausted{agent=\"deploy-risk\"} == 1"
         for: "5m"
@@ -63,7 +63,7 @@ groups:
           agent: "deploy-risk"
           slo: "gate-block-rate"
         annotations:
-          summary: "deploy-risk gate-block rate is above 0.1 over 30d"
+          summary: "deploy-risk gate-block rate is above the 10% ceiling over 30d"
   - name: "agent-slo.pr-reviewer"
     rules:
       - record: "agent_slo:burn_rate:ratio_6h"
@@ -90,7 +90,7 @@ groups:
           agent: "pr-reviewer"
           slo: "pass-rate"
         annotations:
-          summary: "pr-reviewer SLO 'pass-rate' (availability) is burning 5% of its 30d error budget in 6h (burn rate \u22656.0x) [env=production]"
+          summary: "pr-reviewer pass-rate: burning 5% of the 30d error budget in 6h (burn rate above 6.0x over both 6h and 24h)"
       - alert: "AgentSLOSlowBurn"
         expr: "agent_slo:burn_rate:ratio_24h{agent=\"pr-reviewer\"} > 3.0\nand on(agent) agent_slo:burn_rate:ratio_72h{agent=\"pr-reviewer\"} > 3.0\nand on(agent) agent_slo_window_eligible{agent=\"pr-reviewer\",window=\"24h\"} >= 5\nand on(agent) agent_slo_window_bad{agent=\"pr-reviewer\",window=\"24h\"} >= 2"
         for: "5m"
@@ -99,7 +99,7 @@ groups:
           agent: "pr-reviewer"
           slo: "pass-rate"
         annotations:
-          summary: "pr-reviewer SLO 'pass-rate' (availability) is burning 10% of its 30d error budget in 24h (burn rate \u22653.0x) [env=production]"
+          summary: "pr-reviewer pass-rate: burning 10% of the 30d error budget in 24h (burn rate above 3.0x over both 24h and 72h)"
       - alert: "AgentSLOTrend"
         expr: "agent_slo:burn_rate:ratio_72h{agent=\"pr-reviewer\"} > 1.0\nand on(agent) agent_slo:burn_rate:ratio_168h{agent=\"pr-reviewer\"} > 1.0\nand on(agent) agent_slo_window_eligible{agent=\"pr-reviewer\",window=\"72h\"} >= 5\nand on(agent) agent_slo_window_bad{agent=\"pr-reviewer\",window=\"72h\"} >= 2"
         for: "5m"
@@ -108,7 +108,7 @@ groups:
           agent: "pr-reviewer"
           slo: "pass-rate"
         annotations:
-          summary: "pr-reviewer SLO 'pass-rate' (availability) is burning 10% of its 30d error budget in 72h (burn rate \u22651.0x) [env=production]"
+          summary: "pr-reviewer pass-rate: burning 10% of the 30d error budget in 72h (burn rate above 1.0x over both 72h and 168h)"
       - alert: "AgentSLOBudgetExhausted"
         expr: "agent_slo_budget_exhausted{agent=\"pr-reviewer\"} == 1"
         for: "5m"
@@ -126,7 +126,7 @@ groups:
           agent: "pr-reviewer"
           slo: "gate-block-rate"
         annotations:
-          summary: "pr-reviewer gate-block rate is above 0.1 over 30d"
+          summary: "pr-reviewer gate-block rate is above the 10% ceiling over 30d"
   - name: "agent-slo.export"
     rules:
       - alert: "AgentSLOExportStale"

@@ -98,3 +98,29 @@ def test_default_windows_unchanged_in_output_count() -> None:
 def test_tiny_error_budget_is_not_rounded_away() -> None:
     text = render_rules({"a": cfg("a", pass_target=0.9999994)})
     assert "/ 6e-07" in text or "/ 5.99999999e-07" in text or "/ 6.00000e-07" in text, text[:600]
+
+
+def test_every_alert_waits_five_minutes() -> None:
+    text = render_rules(CONFIGS)
+    alerts = text.count("- alert:")
+    assert alerts == 2 * 5 + 1
+    assert text.count('for: "5m"') == alerts
+
+
+def test_summaries_describe_the_pass_rate_slo_without_foreign_wording() -> None:
+    text = render_rules({"pr-reviewer": CONFIGS["pr-reviewer"]})
+    summaries = [json.loads(m) for m in re.findall(r"summary: (\".*\")\n", text)]
+    assert len(summaries) == 6
+    for summary in summaries:
+        assert "availability" not in summary and "env=" not in summary
+        assert "\u2265" not in summary  # the rules use a strict ">", so never say "at least"
+    burn = [s for s in summaries if "burning" in s]
+    assert burn == [
+        "pr-reviewer pass-rate: burning 5% of the 30d error budget in 6h "
+        "(burn rate above 6.0x over both 6h and 24h)",
+        "pr-reviewer pass-rate: burning 10% of the 30d error budget in 24h "
+        "(burn rate above 3.0x over both 24h and 72h)",
+        "pr-reviewer pass-rate: burning 10% of the 30d error budget in 72h "
+        "(burn rate above 1.0x over both 72h and 168h)",
+    ]
+    assert any("10% ceiling" in s for s in summaries)

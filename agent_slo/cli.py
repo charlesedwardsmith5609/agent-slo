@@ -19,6 +19,12 @@ from agent_slo.metrics import render_metrics
 from agent_slo.report import render_report
 from agent_slo.rules import render_rules
 
+_CONFIG_HELP = "TOML file with the per-agent SLO settings (see examples/slo.toml)"
+_AUDIT_HELP = "agent-harness audit JSONL file; it must hold the full history needed (30 days)"
+_NOW_HELP = (
+    "evaluation time, ISO 8601 with a timezone, e.g. 2026-11-20T12:00:00Z (default: current time)"
+)
+
 
 class _Usage(Exception):
     """Bad command-line value."""
@@ -61,13 +67,21 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agent-slo", description="Agent SLIs, alerts and reports")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    gen = sub.add_parser("generate", help="write a synthetic audit log for demos")
-    gen.add_argument("--config", required=True)
-    gen.add_argument("--out", required=True)
-    gen.add_argument("--days", type=int, default=30)
-    gen.add_argument("--runs-per-day", type=int, default=40)
-    gen.add_argument("--seed", type=int, default=1)
-    gen.add_argument("--now", help="end of the span (ISO 8601 with timezone); default: now")
+    gen = sub.add_parser(
+        "generate",
+        help="write a synthetic audit log for demos",
+        description="Write a synthetic agent-harness audit log (JSONL) for each configured agent.",
+    )
+    gen.add_argument("--config", required=True, help=_CONFIG_HELP)
+    gen.add_argument("--out", required=True, help="audit JSONL file to write (replaced atomically)")
+    gen.add_argument("--days", type=int, default=30, help="length of the span (default: 30)")
+    gen.add_argument(
+        "--runs-per-day", type=int, default=40, help="runs per agent per day (default: 40)"
+    )
+    gen.add_argument(
+        "--seed", type=int, default=1, help="random seed; same seed, same data (default: 1)"
+    )
+    gen.add_argument("--now", help=_NOW_HELP.replace("evaluation time", "end of the span"))
     gen.add_argument(
         "--scenario",
         action="append",
@@ -76,21 +90,33 @@ def _build_parser() -> argparse.ArgumentParser:
         help=f"one of {', '.join(SCENARIOS)}; unnamed agents are healthy; repeatable",
     )
 
-    met = sub.add_parser("metrics", help="write Prometheus textfile metrics")
-    met.add_argument("--config", required=True)
-    met.add_argument("--audit", required=True)
-    met.add_argument("--out", required=True)
-    met.add_argument("--now")
+    met = sub.add_parser(
+        "metrics",
+        help="write Prometheus textfile metrics",
+        description="Write a .prom file for node_exporter's textfile collector.",
+    )
+    met.add_argument("--config", required=True, help=_CONFIG_HELP)
+    met.add_argument("--audit", required=True, help=_AUDIT_HELP)
+    met.add_argument("--out", required=True, help="the .prom file to write (replaced atomically)")
+    met.add_argument("--now", help=_NOW_HELP)
 
-    rul = sub.add_parser("rules", help="print or write Prometheus rules")
-    rul.add_argument("--config", required=True)
-    rul.add_argument("--out")
+    rul = sub.add_parser(
+        "rules",
+        help="print or write Prometheus rules",
+        description="Write the Prometheus recording and alerting rules (needs no audit log).",
+    )
+    rul.add_argument("--config", required=True, help=_CONFIG_HELP)
+    rul.add_argument("--out", help="rule file to write (replaced atomically); default: stdout")
 
-    rep = sub.add_parser("report", help="print or write the weekly Markdown report")
-    rep.add_argument("--config", required=True)
-    rep.add_argument("--audit", required=True)
-    rep.add_argument("--out")
-    rep.add_argument("--now")
+    rep = sub.add_parser(
+        "report",
+        help="print or write the weekly Markdown report",
+        description="Write the Markdown report for the 7 days ending at --now.",
+    )
+    rep.add_argument("--config", required=True, help=_CONFIG_HELP)
+    rep.add_argument("--audit", required=True, help=_AUDIT_HELP)
+    rep.add_argument("--out", help="report file to write (replaced atomically); default: stdout")
+    rep.add_argument("--now", help=_NOW_HELP)
     return parser
 
 

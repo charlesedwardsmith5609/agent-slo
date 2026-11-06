@@ -188,6 +188,21 @@ def render_report(
         lines.append("")
 
     lines += [
+        "## How to read this report",
+        "",
+        "- Eligible runs exclude dry runs. A run is *bad* if it failed or a gate blocked it; "
+        "everything else eligible is a pass.",
+        "- Budget consumed compares the bad-run rate over the budget window with the error "
+        "budget (1 minus the pass target). 100% or more means the budget is exhausted.",
+        "- Burn rate is how many times faster than the sustainable pace the budget is being "
+        "spent (1x is exactly sustainable). An alert fires only when both its short and its "
+        "long window exceed the threshold.",
+        "- States: NO_DATA (no eligible runs), INSUFFICIENT_DATA (fewer than `min_events` runs), "
+        "OK, BURNING (at least one burn alert is firing), EXHAUSTED (budget used up; "
+        "takes precedence).",
+        '- Verdicts: PASS or MISS against the target; "insufficient data" means too few '
+        "runs to judge, which is not a pass.",
+        "",
         "## Caveats",
         "",
         "- Dry runs are excluded from every figure.",

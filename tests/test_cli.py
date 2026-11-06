@@ -151,3 +151,29 @@ def test_extreme_values_give_one_line_error_not_a_traceback(workdir: Path) -> No
         result = run(*argv)
         assert result.returncode == 2, (argv, result.stdout, result.stderr)
         assert result.stderr.startswith("agent-slo: error:") and "Traceback" not in result.stderr
+
+
+def test_every_subcommand_help_explains_its_options() -> None:
+    expected = {
+        "generate": [
+            "--config",
+            "--out",
+            "--days",
+            "--runs-per-day",
+            "--seed",
+            "--now",
+            "--scenario",
+        ],
+        "metrics": ["--config", "--audit", "--out", "--now"],
+        "rules": ["--config", "--out"],
+        "report": ["--config", "--audit", "--out", "--now"],
+    }
+    for command, options in expected.items():
+        result = run(command, "--help")
+        assert result.returncode == 0 and result.stderr == "", (command, result.stderr)
+        flat = " ".join(result.stdout.split())
+        for option in options:
+            assert option in flat, (command, option)
+        assert "ISO 8601" in flat or command == "rules"
+        assert "(default" in flat or command == "rules" or "replaced atomically" in flat
+    assert "examples/slo.toml" in " ".join(run("report", "--help").stdout.split())

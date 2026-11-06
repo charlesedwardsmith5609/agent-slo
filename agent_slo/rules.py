@@ -3,8 +3,10 @@
 slo-toolkit's own ``to_prometheus_rules`` cannot filter the denominator by agent or add event
 guards, so this module writes the rule file itself. Every window, burn-rate threshold, severity and
 ``for:`` value comes from slo-toolkit (via ``budget.build_windows``), the same source
-``evaluate_budget`` uses. Alerts read only the exact ``agent_slo_window_*`` gauges from
-``metrics.py``. Every string scalar is JSON-quoted, which is valid YAML.
+``evaluate_budget`` uses; the alert summary text is written here (slo-toolkit's wording mentions an
+environment and an availability SLI that do not exist in agent-slo).
+Alerts read only the exact ``agent_slo_window_*`` gauges from ``metrics.py``. Every string scalar
+is JSON-quoted, which is valid YAML.
 
 Pure function, no shared state. Validate the output with ``promtool check rules``.
 """
@@ -96,7 +98,14 @@ def render_rules(
                 expr,
                 for_=w.pending_for,
                 labels={"severity": w.severity.value, "agent": agent, "slo": SLO_NAME},
-                annotations={"summary": w.description},
+                annotations={
+                    "summary": (
+                        f"{agent} pass-rate: burning {w.budget_fraction * 100:g}% of the "
+                        f"{compliance_days}d error budget in {window_label(short)} "
+                        f"(burn rate above {thr}x over both {window_label(short)} and "
+                        f"{window_label(long_)})"
+                    )
+                },
             )
         _rule(
             lines,
@@ -118,8 +127,8 @@ def render_rules(
             for_="5m",
             labels={"severity": "ticket", "agent": agent, "slo": "gate-block-rate"},
             annotations={
-                "summary": f"{agent} gate-block rate is above {_num(cfg.gate_block_ceiling)} "
-                f"over {compliance_days}d"
+                "summary": f"{agent} gate-block rate is above the "
+                f"{cfg.gate_block_ceiling * 100:g}% ceiling over {compliance_days}d"
             },
         )
     lines += [f"  - name: {_q('agent-slo.export')}", "    rules:"]

@@ -2,17 +2,70 @@
 
 [![CI](https://github.com/charlesedwardsmith5609/agent-slo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/charlesedwardsmith5609/agent-slo/actions/workflows/ci.yml)
 
-Reads [agent-harness](https://github.com/charlesedwardsmith5609/agent-harness) audit logs and
-computes agent SLIs, error budgets and multi-window burn rates. It emits Prometheus metrics, Prometheus
-alert rules and a weekly Markdown report. The burn-rate math comes from
-[slo-toolkit](https://github.com/charlesedwardsmith5609/slo-toolkit).
+Tells you whether your AI agents are reliable enough to trust with automatic actions.
 
-Application code uses only the Python standard library (3.11+). slo-toolkit is the one dependency; it is not
-on PyPI, so it is pinned to a git commit in `pyproject.toml`.
+It reads the audit log that [agent-harness](https://github.com/charlesedwardsmith5609/agent-harness) writes (one
+line per agent run), measures how often each agent passes, how often its safety gates block it, how fast it is and
+how close it runs to its cost limit, and turns that into Prometheus metrics, Prometheus alert rules and a weekly
+Markdown report. The burn-rate math comes from [slo-toolkit](https://github.com/charlesedwardsmith5609/slo-toolkit).
+It also includes an example **error budget policy**: when an agent uses up its budget, freeze auto-merge for it and
+require human review.
+
+## How it works
+
+```
+agent-harness --writes--> audit.jsonl --read by--> agent-slo --+-- metrics --> agent_slo.prom --> node_exporter --> Prometheus
+                                                               +-- rules   --> rules.yml -----------------------> Prometheus (alerts)
+                                                               +-- report  --> report.md (weekly, for people)
+```
+
+agent-slo never calls an LLM and never blocks anything itself; it measures and alerts.
+
+Terms used throughout:
+
+- **Run**: one agent execution, one audit line. A **dry run** (a wiring test with no API call) is ignored everywhere.
+- **Outcome**: a run is a **pass** (parsed and cleared the gates), **gate-blocked** (parsed, but the confidence or cost
+  gate rejected it) or **failed** (an exception: API error, malformed JSON, missing key, or refused by the pre-call
+  cost ceiling).
+- **Eligible** runs are all non-dry runs. **Parseable** runs are passes plus gate-blocked runs (the agent returned
+  valid output). A **bad** run is a gate-blocked or failed run.
+- **SLI** (service level indicator): a measured ratio, such as the share of runs that pass. **SLO**: the target for it.
+- **Error budget**: the bad runs the SLO allows. With a 95% pass target, 5% of eligible runs may be bad.
+- **Burn rate**: how many times faster than sustainable the budget is being spent. 1x means exactly on pace; 6x
+  means the whole 30-day budget would be gone in 5 days. Alerts use a short and a long window together, so a brief
+  blip does not page.
+- **State** of an agent's budget: `NO_DATA` (no eligible runs), `INSUFFICIENT_DATA` (fewer than `min_events` runs),
+  `OK`, `BURNING` (a burn alert is firing) or `EXHAUSTED` (the 30-day budget is used up; takes precedence).
+
+## Install
+
+You need Python 3.11 or newer, `git`, and network access to GitHub. slo-toolkit is the only dependency; it is not on
+PyPI, so `pyproject.toml` pins it to a git commit and pip clones it.
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -e .   # needs network access to GitHub
+python3 -m venv .venv && .venv/bin/pip install -e .
+source .venv/bin/activate    # so that `python -m agent_slo` below uses this environment
 ```
+
+Application code uses only the Python standard library.
+
+## Quick demo
+
+No real agents or API keys needed: `generate` makes 30 days of synthetic audit data.
+
+```bash test-demo
+python -m agent_slo generate --config examples/slo.toml --out audit.jsonl \
+  --scenario deploy-risk=degrading --scenario runbook-gen=burst
+python -m agent_slo report --config examples/slo.toml --audit audit.jsonl --out report.md
+python -m agent_slo metrics --config examples/slo.toml --audit audit.jsonl --out agent_slo.prom
+python -m agent_slo rules --config examples/slo.toml --out rules.yml
+```
+
+`generate` writes 30 days (`--days`) of runs, 40 per agent per day (`--runs-per-day`), in exactly the shape the
+harness writes. Scenarios: `healthy` (default), `degrading` (failure rate ramps from 1% to 25%), `burst` (90%
+failures in the final 12 hours). Agents not named with `--scenario` are healthy. With the default seed, `report.md`
+shows `deploy-risk` EXHAUSTED, `runbook-gen` BURNING and `pr-reviewer` OK. Use `--seed` for a different dataset and
+`--now` (ISO 8601 with a timezone) to pin the clock; without it the span ends at the current time.
 
 ## What it reads
 
@@ -23,12 +76,8 @@ parsed by the JSON decoder but never inspected, stored, or written to any output
 The log does **not** record `max_cost_usd`, so it comes from a config file ([`examples/slo.toml`](examples/slo.toml)).
 If a future harness logs `max_cost_usd` on the record, that value wins.
 
-Each run falls into one outcome:
-
-- **pass**: `success` and `gate_passed`
-- **gate-blocked**: parseable output, but the confidence or cost gate blocked it
-- **failed**: an exception (API error, malformed JSON, missing key, pre-call cost refusal)
-- **dry run**: `gate_reason` starts with "Dry run"; excluded from everything
+A run is a dry run when its `gate_reason` starts with "Dry run"; otherwise `success` false means failed,
+`gate_passed` false means gate-blocked, and both true means pass.
 
 Unusable lines are counted by reason and shown in the report and metrics, never silently dropped.
 
@@ -45,27 +94,11 @@ Combine rotated files first (`cat audit-*.jsonl > all.jsonl`). Multiple input fi
 | Latency | successful runs with `duration_s` at or under the threshold | 30 s at 95% |
 | Cost headroom | successful runs with cost at or under 80% of `max_cost_usd` | 95% |
 
+"Successful" means parseable (pass or gate-blocked).
 All failures count against pass rate, including provider-side API errors: the log cannot tell the causes apart.
 Latency and cost use successful runs only because failed runs always log cost 0 and a meaningless duration.
-Reports also show p95 duration and the mean and p95 of cost divided by `max_cost_usd`. A ratio built from fewer
-than `min_events` (default 5) runs is reported as "insufficient data", never as a pass.
-
-## Quick demo
-
-```bash test-demo
-python -m agent_slo generate --config examples/slo.toml --out audit.jsonl \
-  --scenario deploy-risk=degrading --scenario runbook-gen=burst
-python -m agent_slo report --config examples/slo.toml --audit audit.jsonl --out report.md
-python -m agent_slo metrics --config examples/slo.toml --audit audit.jsonl --out agent_slo.prom
-python -m agent_slo rules --config examples/slo.toml --out rules.yml
-```
-
-`generate` writes 30 days (`--days`) of synthetic runs, 40 per agent per day (`--runs-per-day`), in exactly the
-shape the harness writes. Scenarios: `healthy`
-(default), `degrading` (failure rate ramps from 1% to 25%), `burst` (90% failures in the final 12 hours).
-Agents not named with `--scenario` are healthy. With the default seed, `report.md` shows `deploy-risk` EXHAUSTED,
-`runbook-gen` BURNING and `pr-reviewer` OK. Use `--seed` for a different dataset and `--now` (ISO 8601 with a
-timezone) to pin the clock; without it the span ends at the current time.
+Reports also show p95 duration (nearest-rank) and the mean and p95 of cost divided by `max_cost_usd`. A ratio built
+from fewer than `min_events` (default 5) runs is reported as "insufficient data", never as a pass.
 
 ## Configuration
 
@@ -88,9 +121,9 @@ Runs in the log from agents that are not in the config are ignored by the SLIs; 
 
 ## Command line
 
-`python -m agent_slo <command> [options]`. Every error prints one line to stderr
-(`agent-slo: error: ...`) and exits 2; success exits 0. `--now` takes ISO 8601 with a timezone, for example
-`2026-11-20T12:00:00Z`, and defaults to the current time.
+`python -m agent_slo <command> [options]`; run `<command> --help` for the same information. Every error prints one
+line to stderr (`agent-slo: error: ...`) and exits 2; success exits 0. `--now` takes ISO 8601 with a timezone, for
+example `2026-11-20T12:00:00Z`, and defaults to the current time.
 
 | Command | Options | Output |
 |---|---|---|
@@ -102,13 +135,6 @@ Runs in the log from agents that are not in the config are ignored by the SLIs; 
 Input limits: a line over 1 MiB, an `agent_name` over 128 characters or a `run_id` over 64 characters is skipped and
 counted; a file with more than 1,000,000 usable records is refused. The report covers the 7 days ending at `--now`
 and the budget covers 30 days.
-
-## Python API
-
-The CLI is a thin layer over plain functions, which take and return immutable data and keep no shared state:
-`audit.read_audit`, `config.load_config`, `sli.compute_slis`, `budget.evaluate_budget`,
-`metrics.render_metrics`, `rules.render_rules`, `report.render_report`, `generate.generate_records`. All
-timestamps passed in must be timezone-aware. Everything is synchronous and single-threaded.
 
 ## Metrics and alert rules
 
@@ -122,14 +148,15 @@ One export reads the whole file, so cost grows with file size (up to 1,000,000 r
 `rules` writes a rule file. Add it to the `rule_files:` list in `prometheus.yml` and reload Prometheus. This is a
 different destination from the `.prom` file: node_exporter does not read rule files.
 
-Alerts (per agent):
+Alerts (per agent). Every alert waits 5 minutes (`for: 5m`) after its condition becomes true before it fires.
 
 - `AgentSLOFastBurn` (page): 5% of the 30-day budget in 6 hours, burn above 6x, confirmed over 24 hours
 - `AgentSLOSlowBurn` (ticket): 10% in 24 hours, burn above 3x, confirmed over 72 hours
 - `AgentSLOTrend` (info): 10% in 72 hours, burn above 1x, confirmed over 168 hours
 - `AgentSLOBudgetExhausted` (page): the 30-day budget is used up
 - `AgentSLOGateBlockBreach` (ticket): gate-block rate above its ceiling
-- `AgentSLOExportStale` (page, global): the metrics are older than 15 minutes, or absent from Prometheus
+
+Global: `AgentSLOExportStale` (page) fires when the metrics are older than 15 minutes or absent from Prometheus.
 
 A burn alert fires only when both its windows exceed the threshold, the short window holds at least `min_events`
 runs, and it holds at least 2 bad runs. One failure can never page or freeze an agent. These windows start at 6
@@ -168,6 +195,20 @@ window, then alerts on those. A window that is not a whole number of hours is wr
 Burn alert (it fires when both windows and the guards hold, and stays silent with a single bad run). Tested with
 promtool 3.16.0. The other alerts are covered by golden-file and arithmetic tests but not by `promtool test rules`.
 Run `promtool check rules rules.yml` yourself before loading the rules.
+
+## Reading the weekly report
+
+Each agent gets a section with its state, how much of the 30-day budget is consumed, any burn alerts firing, and
+this week's SLIs with a verdict: PASS or MISS against the target, "insufficient data" when fewer than `min_events`
+runs back the figure, "no data" when there are none. An exhausted agent also gets an "Action required" line with the
+policy below. The report ends with a "How to read this report" legend and the caveats. Sample output for the demo:
+
+```
+## Summary
+- deploy-risk: EXHAUSTED (freeze auto-merge, require human review)
+- pr-reviewer: OK
+- runbook-gen: BURNING
+```
 
 ## Example: agent error budget policy
 
@@ -209,24 +250,33 @@ must be recorded with who approved it and why.
 - The harness swallows audit-write errors, so a missing line is invisible to this tool.
 - The default windows and thresholds are policy choices, not measurements; tune them to your volume.
 
+## Python API
+
+The CLI is a thin layer over plain functions, which take and return immutable data and keep no shared state:
+`audit.read_audit`, `config.load_config`, `sli.compute_slis`, `budget.evaluate_budget`,
+`metrics.render_metrics`, `rules.render_rules`, `report.render_report`, `generate.generate_records`. All
+timestamps passed in must be timezone-aware. Everything is synchronous and single-threaded.
+
 ## Development
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -e . pytest ruff mypy
+python3 -m venv .venv && .venv/bin/pip install -e . pytest==9.2.0 ruff==0.17.4 mypy==2.4.1
 bash scripts/check.sh   # ruff check, ruff format --check, mypy, pytest
 ```
 
-CI (`.github/workflows/ci.yml`) runs `scripts/check.sh` on Python 3.11 and 3.14 with pinned tool versions and a
-checksum-verified promtool 3.16.0, and fails if promtool is missing (`REQUIRE_PROMTOOL=1`) rather than skipping those tests.
+The tool versions match CI, because `ruff format --check` output depends on the ruff version. CI
+(`.github/workflows/ci.yml`) runs `scripts/check.sh` on Python 3.11 and 3.14 with a checksum-verified promtool 3.16.0,
+and fails if promtool is missing (`REQUIRE_PROMTOOL=1`) rather than skipping those tests. `promtool` (from a Prometheus
+release) is optional locally; the tests that need it are skipped without it.
 
 Dependabot (`.github/dependabot.yml`) proposes weekly updates for the GitHub Actions in the workflow and for pip
 dependencies. It does not see the tool versions and promtool pinned inside `ci.yml`; bump those by hand. The
 slo-toolkit pin is deliberate, so a Dependabot PR for it is a design change: check compatibility and update
 `REQUIREMENTS.md` with the pin.
 
-`pytest`, `ruff` and `mypy` are development tools, not dependencies of the package. `promtool` (from a Prometheus
-release) is optional; the tests that need it are skipped without it. The design history is in `REQUIREMENTS.md`
-and `plans/`.
+`pytest`, `ruff` and `mypy` are development tools, not dependencies of the package. The agreed requirements are in
+`REQUIREMENTS.md`; the design history is in `plans/` (see `plans/README.md`). Working agreements for contributors
+using the pairing workflow are in `CLAUDE.md`.
 
 ## License
 
