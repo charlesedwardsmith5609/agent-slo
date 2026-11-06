@@ -214,6 +214,9 @@ python3 -m venv .venv && .venv/bin/pip install -e . pytest ruff mypy
 bash scripts/check.sh   # ruff check, ruff format --check, mypy, pytest
 ```
 
+CI (`.github/workflows/ci.yml`) runs `scripts/check.sh` on Python 3.11 and 3.14 with pinned tool versions and a
+checksum-verified promtool 3.16.0, and fails if promtool is missing (`REQUIRE_PROMTOOL=1`) rather than skipping those tests.
+
 `pytest`, `ruff` and `mypy` are development tools, not dependencies of the package. `promtool` (from a Prometheus
 release) is optional; the tests that need it are skipped without it. The design history is in `REQUIREMENTS.md`
 and `plans/`.

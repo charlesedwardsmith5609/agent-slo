@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # scripts/check.sh expects .venv. Tool versions are pinned because `ruff format --check`
+      # output depends on the ruff version. slo-toolkit (public) is fetched at its pinned commit.
+      - name: Create virtualenv and install
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e . pytest==9.2.0 ruff==0.17.4 mypy==2.4.1
+
+      - name: Install promtool
+        env:
+          PROM_VERSION: "3.16.0"
+          PROM_SHA256: "68727009472a2c02e1ff7f062fd5b3e637285bffc8fc2d340c76fb449d6e0f34"
+        run: |
+          set -euo pipefail
+          asset="prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
+          cd "$RUNNER_TEMP"
+          curl -sSfL --retry 3 -o "$asset" \
+            "https://github.com/prometheus/prometheus/releases/download/v${PROM_VERSION}/${asset}"
+          echo "${PROM_SHA256}  ${asset}" | sha256sum -c -
+          mkdir promtool-bin
+          tar -xzf "$asset" -C promtool-bin --strip-components=1 \
+            "prometheus-${PROM_VERSION}.linux-amd64/promtool"
+          echo "$RUNNER_TEMP/promtool-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/promtool-bin/promtool" --version | head -n 1 | tee /dev/stderr \
+            | grep -F "promtool, version ${PROM_VERSION} "
+
+      # REQUIRE_PROMTOOL turns "promtool missing" from a skip into a failure.
+      - name: Run check.sh
+        env:
+          REQUIRE_PROMTOOL: "1"
+        run: bash scripts/check.sh

@@ -2,6 +2,7 @@
 when promtool is not installed, so the check never claims verification it did not do."""
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -14,6 +15,9 @@ from agent_slo.config import AgentConfig
 from agent_slo.rules import render_rules
 
 PROMTOOL = shutil.which("promtool") or str(Path.home() / ".local" / "bin" / "promtool")
+if os.environ.get("REQUIRE_PROMTOOL") and not Path(PROMTOOL).exists():
+    # CI sets this so a broken promtool install fails the build instead of skipping the tests.
+    pytest.fail("REQUIRE_PROMTOOL is set but promtool was not found", pytrace=False)
 pytestmark = pytest.mark.skipif(not Path(PROMTOOL).exists(), reason="promtool not installed")
 
 CFG = AgentConfig(

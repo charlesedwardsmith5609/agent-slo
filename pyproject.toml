@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "agent-slo"
 version = "0.1.0"
@@ -7,6 +11,9 @@ readme = "README.md"
 dependencies = [
     "slo-toolkit @ git+https://github.com/charlesedwardsmith5609/slo-toolkit@6c548691bfd52ca6e45a98ded2b98c3f6999716e",
 ]
+
+[tool.setuptools.packages.find]
+include = ["agent_slo*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
